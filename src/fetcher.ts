@@ -269,19 +269,6 @@ function createFetch<OP, C>(fetch: _TypedFetch<OP, C>): TypedFetch<OP, C> {
   return fun
 }
 
-type MethodFn<Paths, P extends keyof Paths> = <
-  M extends keyof Paths[P],
-  C extends OpContentType<Paths[P][M]>,
->(
-  ...args: Paths[P][M] extends { requestBody?: { content: infer D } }
-    ? keyof D extends ContentType
-      ? [M, keyof D]
-      : [M, never]
-    : [M]
-) => {
-  create: CreateFetch<M, Paths[P][M], C>,
-}
-
 function fetcher<Paths>() {
   let baseUrl = ''
   let defaultInit: RequestInit = {}
@@ -297,22 +284,24 @@ function fetcher<Paths>() {
     },
     use: (mw: Middleware) => middlewares.push(mw),
     path: <P extends keyof Paths>(path: P) => ({
-      method: ((method, contentType) => ({
-        create: ((queryParams) => {
+      method: <M extends keyof Paths[P], C extends OpContentType<Paths[P][M]>>(
+        ...args: C extends ContentType ? [M, C] : [M]
+      ) => ({
+        create: ((queryParams?: any) => {
           return createFetch((payload, init) =>
             fetchUrl({
               baseUrl: baseUrl || '',
               path: path as string,
-              method: method as Method,
+              method: args[0] as Method,
               queryParams: Object.keys(queryParams || {}),
               payload,
               init: mergeRequestInit(defaultInit, init),
               fetch,
-              contentType: contentType as ContentType | undefined,
+              contentType: ((args as [M, C?])[1] as ContentType) || undefined,
             }),
           )
-        }) as CreateFetch<any, Paths[P][any], any>,
-      })) as MethodFn<Paths, P>,
+        }) as CreateFetch<M, Paths[P][M], C>,
+      }),
     }),
   }
 }
