@@ -13,7 +13,18 @@ export type OpenapiPaths<Paths> = {
   }
 }
 
-export type OpArgType<OP> = OP extends {
+export type OpContentType<OP> = OP extends {
+  requestBody?: {
+    content: Record<infer K, unknown>
+  }
+}
+  ? K : never
+
+type AllowBlobValueWhenMultipart<A, C extends ContentType> = C extends 'multipart/form-data'
+  ? { [K in keyof A]: A[K] extends string ? A[K] | Blob : A[K] }
+  : A;
+
+export type OpArgType<OP, C> = OP extends {
   parameters?: {
     path?: infer P
     query?: infer Q
@@ -23,12 +34,10 @@ export type OpArgType<OP> = OP extends {
   }
   // openapi 3
   requestBody?: {
-    content: {
-      'application/json': infer RB
-    }
+    content: infer RB,
   }
 }
-  ? P & Q & (B extends Record<string, unknown> ? B[keyof B] : unknown) & RB
+  ? P & Q & (B extends Record<string, unknown> ? B[keyof B] : unknown) & (C extends ContentType ? RB extends Record<C, unknown> ? AllowBlobValueWhenMultipart<RB[C], C>: Record<string, never> : Record<string,never>)
   : Record<string, never>
 
 type OpResponseTypes<OP> = OP extends {
@@ -88,38 +97,38 @@ export type Fetch = (
   init: CustomRequestInit,
 ) => Promise<ApiResponse>
 
-export type _TypedFetch<OP> = (
-  arg: OpArgType<OP>,
+export type _TypedFetch<OP, C> = (
+  arg: OpArgType<OP, C>,
   init?: RequestInit,
 ) => Promise<ApiResponse<OpReturnType<OP>>>
 
-export type TypedFetch<OP> = _TypedFetch<OP> & {
+export type TypedFetch<OP, C> = _TypedFetch<OP, C> & {
   Error: new (error: ApiError) => ApiError & {
     getActualType: () => OpErrorType<OP>
   }
 }
 
-export type FetchArgType<F> = F extends TypedFetch<infer OP>
-  ? OpArgType<OP>
+export type FetchArgType<F> = F extends TypedFetch<infer OP, unknown>
+  ? OpArgType<OP, unknown>
   : never
 
-export type FetchReturnType<F> = F extends TypedFetch<infer OP>
+export type FetchReturnType<F> = F extends TypedFetch<infer OP, unknown>
   ? OpReturnType<OP>
   : never
 
-export type FetchErrorType<F> = F extends TypedFetch<infer OP>
+export type FetchErrorType<F> = F extends TypedFetch<infer OP, unknown>
   ? OpErrorType<OP>
   : never
 
-type _CreateFetch<OP, Q = never> = [Q] extends [never]
-  ? () => TypedFetch<OP>
-  : (query: Q) => TypedFetch<OP>
+type _CreateFetch<OP, C, Q = never> = [Q] extends [never]
+  ? () => TypedFetch<OP, C>
+  : (query: Q) => TypedFetch<OP, C>
 
-export type CreateFetch<M, OP> = M extends 'post' | 'put' | 'patch' | 'delete'
+export type CreateFetch<M, OP, C> = M extends 'post' | 'put' | 'patch' | 'delete'
   ? OP extends { parameters: { query: infer Q } }
-    ? _CreateFetch<OP, { [K in keyof Q]: true | 1 }>
-    : _CreateFetch<OP>
-  : _CreateFetch<OP>
+    ? _CreateFetch<OP, C, { [K in keyof Q]: true | 1 }>
+    : _CreateFetch<OP, C>
+  : _CreateFetch<OP, C>
 
 export type Middleware = (
   url: string,
@@ -140,8 +149,11 @@ export type Request = {
   queryParams: string[] // even if a post these will be sent in query
   payload: any
   init?: RequestInit
-  fetch: Fetch
+  fetch: Fetch,
+  contentType: ContentType,
 }
+
+export type ContentType = 'application/json' | 'multipart/form-data';
 
 export type ApiResponse<R = any> = {
   readonly headers: Headers

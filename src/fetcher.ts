@@ -13,6 +13,8 @@ import {
   Request,
   _TypedFetch,
   TypedFetch,
+  OpContentType,
+  ContentType,
 } from './types'
 
 const sendBody = (method: Method) =>
@@ -72,11 +74,11 @@ function getQuery(
   return queryString(queryObj)
 }
 
-function getHeaders(body?: string, init?: HeadersInit) {
+function getHeaders(body: string | FormData | undefined, init: HeadersInit | undefined, contentType: ContentType) {
   const headers = new Headers(init)
 
   if (body !== undefined && !headers.has('Content-Type')) {
-    headers.append('Content-Type', 'application/json')
+    headers.append('Content-Type', contentType)
   }
 
   if (!headers.has('Accept')) {
@@ -86,8 +88,23 @@ function getHeaders(body?: string, init?: HeadersInit) {
   return headers
 }
 
-function getBody(method: Method, payload: any) {
-  const body = sendBody(method) ? JSON.stringify(payload) : undefined
+function getBody(method: Method, payload: any, contentType: ContentType) {
+  let body: any = undefined;
+
+  if (sendBody(method)) {
+    if (contentType === 'multipart/form-data') {
+      const formData = new FormData();
+
+      Object.entries(payload).forEach(([key, value]) => {
+        formData.append(key, value as File | Blob);
+      });
+
+      body = formData;
+    } else {
+      body = JSON.stringify(payload);
+    }
+  }
+
   // if delete don't send body if empty
   return method === 'delete' && body === '{}' ? undefined : body
 }
@@ -120,8 +137,8 @@ function getFetchParams(request: Request) {
 
   const path = getPath(request.path, payload)
   const query = getQuery(request.method, payload, request.queryParams)
-  const body = getBody(request.method, payload)
-  const headers = getHeaders(body, request.init?.headers)
+  const body = getBody(request.method, payload, request.contentType)
+  const headers = getHeaders(body, request.init?.headers, request.contentType)
   const url = request.baseUrl + path + query
 
   const init = {
@@ -199,8 +216,8 @@ async function fetchUrl<R>(request: Request) {
   return response as ApiResponse<R>
 }
 
-function createFetch<OP>(fetch: _TypedFetch<OP>): TypedFetch<OP> {
-  const fun = async (payload: OpArgType<OP>, init?: RequestInit) => {
+function createFetch<OP, C>(fetch: _TypedFetch<OP, C>): TypedFetch<OP, C> {
+  const fun = async (payload: OpArgType<OP, C>, init?: RequestInit) => {
     try {
       return await fetch(payload, init)
     } catch (err) {
@@ -242,7 +259,7 @@ function fetcher<Paths>() {
     },
     use: (mw: Middleware) => middlewares.push(mw),
     path: <P extends keyof Paths>(path: P) => ({
-      method: <M extends keyof Paths[P]>(method: M) => ({
+      method: <M extends keyof Paths[P], C extends OpContentType<Paths[P][M]>>(method: M, contentType: C) => ({
         create: ((queryParams?: Record<string, true | 1>) =>
           createFetch((payload, init) =>
             fetchUrl({
@@ -253,8 +270,9 @@ function fetcher<Paths>() {
               payload,
               init: mergeRequestInit(defaultInit, init),
               fetch,
+              contentType: contentType as ContentType,
             }),
-          )) as CreateFetch<M, Paths[P][M]>,
+          )) as CreateFetch<M, Paths[P][M], C>,
       }),
     }),
   }
