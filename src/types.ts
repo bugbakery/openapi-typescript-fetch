@@ -15,14 +15,22 @@ export type OpenapiPaths<Paths> = {
 
 export type OpContentType<OP> = OP extends {
   requestBody?: {
-    content: infer C,
+    content: infer C
   }
 }
-  ? keyof C : never
+  ? keyof C
+  : never
 
-type AllowBlobValueWhenMultipart<A, C extends ContentType> = C extends 'multipart/form-data'
-  ? { [K in keyof A]: A[K] extends (string | undefined | null) ? A[K] | Blob : A[K] }
-  : A;
+type AllowBlobValueWhenMultipart<
+  A,
+  C extends ContentType,
+> = C extends 'multipart/form-data'
+  ? {
+      [K in keyof A]: A[K] extends string | undefined | null
+        ? A[K] | Blob
+        : A[K]
+    }
+  : A
 
 export type OpArgType<OP, C> = OP extends {
   parameters?: {
@@ -34,10 +42,17 @@ export type OpArgType<OP, C> = OP extends {
   }
   // openapi 3
   requestBody?: {
-    content: infer RB,
+    content: infer RB
   }
 }
-  ? P & Q & (B extends Record<string, unknown> ? B[keyof B] : unknown) & (C extends ContentType ? RB extends Record<C, unknown> ? AllowBlobValueWhenMultipart<RB[C], C>: Record<string, never> : Record<string,never>)
+  ? P &
+      Q &
+      (B extends Record<string, unknown> ? B[keyof B] : unknown) &
+      (C extends ContentType
+        ? RB extends Record<C, unknown>
+          ? AllowBlobValueWhenMultipart<RB[C], C>
+          : Record<string, never>
+        : Record<string, never>)
   : Record<string, never>
 
 type OpResponseTypes<OP> = OP extends {
@@ -124,7 +139,11 @@ type _CreateFetch<OP, C, Q = never> = [Q] extends [never]
   ? () => TypedFetch<OP, C>
   : (query: Q) => TypedFetch<OP, C>
 
-export type CreateFetch<M, OP, C> = M extends 'post' | 'put' | 'patch' | 'delete'
+export type CreateFetch<M, OP, C> = M extends
+  | 'post'
+  | 'put'
+  | 'patch'
+  | 'delete'
   ? OP extends { parameters: { query: infer Q } }
     ? _CreateFetch<OP, C, { [K in keyof Q]: true | 1 }>
     : _CreateFetch<OP, C>
@@ -149,11 +168,14 @@ export type Request = {
   queryParams: string[] // even if a post these will be sent in query
   payload: any
   init?: RequestInit
-  fetch: Fetch,
-  contentType?: ContentType,
+  fetch: Fetch
+  contentType?: ContentType
 }
 
-export type ContentType = 'application/json' | 'multipart/form-data' | 'application/x-www-form-urlencoded';
+export type ContentType =
+  | 'application/json'
+  | 'multipart/form-data'
+  | 'application/x-www-form-urlencoded'
 
 export type ApiResponse<R = any> = {
   readonly headers: Headers
