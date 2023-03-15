@@ -80,12 +80,11 @@ function getHeaders(
 ) {
   const headers = new Headers(init)
 
-  if (
-    body !== undefined &&
-    !headers.has('Content-Type') &&
-    contentType !== 'multipart/form-data'
-  ) {
-    headers.append('Content-Type', contentType || 'application/json')
+  if (body !== undefined && !headers.has('Content-Type')) {
+    // let browser set content-type on multipart requests, so it can set the boundary parameter
+    if (contentType !== 'multipart/form-data') {
+      headers.append('Content-Type', contentType || 'application/json')
+    }
   }
 
   if (!headers.has('Accept')) {
@@ -103,16 +102,30 @@ function getBody(
   let body: any = undefined
 
   if (sendBody(method)) {
-    if (contentType === 'multipart/form-data') {
-      const formData = new FormData()
+    switch (contentType) {
+      case 'multipart/form-data':
+        const formData = new FormData()
 
-      Object.entries(payload).forEach(([key, value]) => {
-        formData.append(key, value as File | Blob)
-      })
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value as File | Blob)
+        })
 
-      body = formData
-    } else {
-      body = JSON.stringify(payload)
+        body = formData
+        break
+
+      case 'application/x-www-form-urlencoded':
+        const urlSearchParams = new URLSearchParams()
+
+        Object.entries(payload).forEach(([key, value]) => {
+          urlSearchParams.append(key, value as string)
+        })
+
+        body = urlSearchParams
+        break
+
+      case 'application/json':
+        body = JSON.stringify(payload)
+        break
     }
   }
 
@@ -255,14 +268,14 @@ function createFetch<OP, C>(fetch: _TypedFetch<OP, C>): TypedFetch<OP, C> {
   return fun
 }
 
-type AAA<Paths, P extends keyof Paths> = <
+type MethodFn<Paths, P extends keyof Paths> = <
   M extends keyof Paths[P],
   C extends OpContentType<Paths[P][M]>,
 >(
   ...args: Paths[P][M] extends { requestBody?: { content: infer D } }
     ? keyof D extends ContentType
       ? [M, keyof D]
-      : [M, keyof D]
+      : [M, never]
     : [M]
 ) => {
   create: (queryParams?: Record<string, true | 1>) => TypedFetch<Paths[P][M], C>
@@ -297,7 +310,7 @@ function fetcher<Paths>() {
               contentType: contentType as ContentType | undefined,
             }),
           ),
-      })) as AAA<Paths, P>,
+      })) as MethodFn<Paths, P>,
     }),
   }
 }

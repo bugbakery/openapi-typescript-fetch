@@ -24,14 +24,14 @@ type Op3 = Omit<paths3['/v1/account_links']['post'], 'requestBody'> & {
 }
 
 interface Openapi2 {
-  Argument: OpArgType<Op2>
+  Argument: OpArgType<Op2, 'application/json'>
   Return: OpReturnType<Op2>
   Default: Pick<OpDefaultReturnType<Op2>['error'], 'type' | 'message'>
   Error: Pick<OpErrorType<Op2>['data']['error'], 'type' | 'message'>
 }
 
 interface Openapi3 {
-  Argument: OpArgType<Op3>
+  Argument: OpArgType<Op3, 'application/json'>
   Return: OpReturnType<Op3>
   Default: Pick<OpDefaultReturnType<Op3>['error'], 'type' | 'message'>
   Error: Pick<OpErrorType<Op3>['data']['error'], 'type' | 'message'>
@@ -67,7 +67,7 @@ describe('infer', () => {
   })
 
   describe('fetch', () => {
-    type CreateLink = TypedFetch<Op2>
+    type CreateLink = TypedFetch<Op2, unknown>
 
     const fetcher = Fetcher.for<paths2>()
     const createLink: CreateLink = fetcher
@@ -118,8 +118,14 @@ describe('infer', () => {
         }
       } & RequestBody
 
-      const header: Same<OpArgType<HeaderOnly>, { bar: boolean }> = true
-      const cookie: Same<OpArgType<CookieOnly>, { bar: boolean }> = true
+      const header: Same<
+        OpArgType<HeaderOnly, 'application/json'>,
+        { bar: boolean }
+      > = true
+      const cookie: Same<
+        OpArgType<CookieOnly, 'application/json'>,
+        { bar: boolean }
+      > = true
 
       expect(header).toBe(true)
       expect(cookie).toBe(true)

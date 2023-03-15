@@ -19,7 +19,7 @@ export type OpContentType<OP> = OP extends {
   }
 }
   ? keyof C
-  : never
+  : unknown
 
 type AllowBlobValueWhenMultipart<
   A,
@@ -51,8 +51,8 @@ export type OpArgType<OP, C> = OP extends {
       (C extends ContentType
         ? RB extends Record<C, unknown>
           ? AllowBlobValueWhenMultipart<RB[C], C>
-          : Record<string, never>
-        : Record<string, never>)
+          : unknown
+        : unknown)
   : Record<string, never>
 
 type OpResponseTypes<OP> = OP extends {
