@@ -15,13 +15,13 @@ export type OpenapiPaths<Paths> = {
 
 export type OpContentType<OP> = OP extends {
   requestBody?: {
-    content: Record<infer K, unknown>
+    content: infer C,
   }
 }
-  ? K : never
+  ? keyof C : never
 
 type AllowBlobValueWhenMultipart<A, C extends ContentType> = C extends 'multipart/form-data'
-  ? { [K in keyof A]: A[K] extends string ? A[K] | Blob : A[K] }
+  ? { [K in keyof A]: A[K] extends (string | undefined | null) ? A[K] | Blob : A[K] }
   : A;
 
 export type OpArgType<OP, C> = OP extends {
@@ -150,10 +150,10 @@ export type Request = {
   payload: any
   init?: RequestInit
   fetch: Fetch,
-  contentType: ContentType,
+  contentType?: ContentType,
 }
 
-export type ContentType = 'application/json' | 'multipart/form-data';
+export type ContentType = 'application/json' | 'multipart/form-data' | 'application/x-www-form-urlencoded';
 
 export type ApiResponse<R = any> = {
   readonly headers: Headers

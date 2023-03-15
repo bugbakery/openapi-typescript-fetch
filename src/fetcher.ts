@@ -74,11 +74,11 @@ function getQuery(
   return queryString(queryObj)
 }
 
-function getHeaders(body: string | FormData | undefined, init: HeadersInit | undefined, contentType: ContentType) {
+function getHeaders(body: string | FormData | undefined, init: HeadersInit | undefined, contentType: ContentType | undefined) {
   const headers = new Headers(init)
 
   if (body !== undefined && !headers.has('Content-Type')) {
-    headers.append('Content-Type', contentType)
+    headers.append('Content-Type', contentType || 'application/json')
   }
 
   if (!headers.has('Accept')) {
@@ -88,7 +88,7 @@ function getHeaders(body: string | FormData | undefined, init: HeadersInit | und
   return headers
 }
 
-function getBody(method: Method, payload: any, contentType: ContentType) {
+function getBody(method: Method, payload: any, contentType: ContentType | undefined) {
   let body: any = undefined;
 
   if (sendBody(method)) {
@@ -244,6 +244,10 @@ function createFetch<OP, C>(fetch: _TypedFetch<OP, C>): TypedFetch<OP, C> {
   return fun
 }
 
+type AAA<Paths, P extends keyof Paths> = <M extends keyof Paths[P], C extends OpContentType<Paths[P][M]>>(...args: Paths[P][M] extends { requestBody?: { content: infer D }} ? keyof D extends ContentType ? [M, keyof D] : [M, keyof D] : [M]) => {
+  create: (queryParams?: Record<string, true | 1>) => TypedFetch<Paths[P][M], C>
+};
+
 function fetcher<Paths>() {
   let baseUrl = ''
   let defaultInit: RequestInit = {}
@@ -259,8 +263,8 @@ function fetcher<Paths>() {
     },
     use: (mw: Middleware) => middlewares.push(mw),
     path: <P extends keyof Paths>(path: P) => ({
-      method: <M extends keyof Paths[P], C extends OpContentType<Paths[P][M]>>(method: M, contentType: C) => ({
-        create: ((queryParams?: Record<string, true | 1>) =>
+      method: ((method, contentType) => ({
+        create: (queryParams) =>
           createFetch((payload, init) =>
             fetchUrl({
               baseUrl: baseUrl || '',
@@ -270,10 +274,10 @@ function fetcher<Paths>() {
               payload,
               init: mergeRequestInit(defaultInit, init),
               fetch,
-              contentType: contentType as ContentType,
+              contentType: contentType as ContentType | undefined,
             }),
-          )) as CreateFetch<M, Paths[P][M], C>,
-      }),
+          ),
+      })) as AAA<Paths, P>,
     }),
   }
 }
