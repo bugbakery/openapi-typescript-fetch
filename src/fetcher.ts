@@ -14,6 +14,7 @@ import {
   TypedFetch,
   OpContentType,
   ContentType,
+  CreateFetch,
 } from './types'
 
 const sendBody = (method: Method) =>
@@ -278,7 +279,7 @@ type MethodFn<Paths, P extends keyof Paths> = <
       : [M, never]
     : [M]
 ) => {
-  create: (queryParams?: Record<string, true | 1>) => TypedFetch<Paths[P][M], C>
+  create: CreateFetch<M, Paths[P][M], C>,
 }
 
 function fetcher<Paths>() {
@@ -297,8 +298,8 @@ function fetcher<Paths>() {
     use: (mw: Middleware) => middlewares.push(mw),
     path: <P extends keyof Paths>(path: P) => ({
       method: ((method, contentType) => ({
-        create: (queryParams) =>
-          createFetch((payload, init) =>
+        create: ((queryParams) => {
+          return createFetch((payload, init) =>
             fetchUrl({
               baseUrl: baseUrl || '',
               path: path as string,
@@ -309,7 +310,8 @@ function fetcher<Paths>() {
               fetch,
               contentType: contentType as ContentType | undefined,
             }),
-          ),
+          )
+        }) as CreateFetch<any, Paths[P][any], any>,
       })) as MethodFn<Paths, P>,
     }),
   }
