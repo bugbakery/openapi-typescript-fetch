@@ -77,7 +77,7 @@ function getQuery(
 function getHeaders(body: string | FormData | undefined, init: HeadersInit | undefined, contentType: ContentType | undefined) {
   const headers = new Headers(init)
 
-  if (body !== undefined && !headers.has('Content-Type')) {
+  if (body !== undefined && !headers.has('Content-Type') && contentType !== 'multipart/form-data') {
     headers.append('Content-Type', contentType || 'application/json')
   }
 
