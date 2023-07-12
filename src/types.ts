@@ -28,6 +28,8 @@ type AllowBlobValueWhenMultipart<
   ? {
       [K in keyof A]: A[K] extends string | undefined | null
         ? A[K] | Blob
+        : A[K] extends string[] | undefined | null
+        ? A[K] | Blob[]
         : A[K]
     }
   : A

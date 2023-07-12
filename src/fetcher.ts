@@ -108,7 +108,13 @@ function getBody(
         const formData = new FormData()
 
         Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value as File | Blob)
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              formData.append(key, v as File | Blob)
+            }
+          } else {
+            formData.append(key, value as File | Blob)
+          }
         })
 
         body = formData
